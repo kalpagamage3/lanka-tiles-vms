@@ -1,0 +1,11 @@
+# GitHub Pages configuration for Lanka Tiles VMS
+title: Lanka Tiles — Visitor Management System
+description: Visitor Management System for Lanka Tiles PLC
+theme: null
+
+# Exclude server files from GitHub Pages
+exclude:
+  - server-bundle.js
+  - "START - Windows.bat"
+  - "START - Mac+Linux.sh"
+  - README.txt
