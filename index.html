@@ -366,12 +366,9 @@ function _ret(pass){if(!pass)return;const p=pass[0];if(['G','Y','A','R'].include
 const _KEY='lt_vms_v5';
 function _save(){
   try{localStorage.setItem(_KEY,JSON.stringify(_DB));}catch(e){}
-  // Debounced Gist push after changes
-  if(_save._t)clearTimeout(_save._t);
-  _save._t=setTimeout(()=>{
-    const cfg=getGistConfig();
-    if(cfg.token&&cfg.gistId)gistPush();
-  },15000); // push 15s after last change
+  // debounced GitHub push — 20s after last change
+  clearTimeout(_save._t);
+  _save._t=setTimeout(ghPush,20000);
 }
 function _initDB(){
   try{
@@ -607,7 +604,7 @@ async function load(){
   const pb=document.getElementById('pending-badge');
   if(pb){pb.style.display=n>0?'inline-flex':'none';pb.textContent=n;}
 }
-function go(v){S.view=v;document.querySelectorAll('.nb').forEach(b=>b.classList.toggle('active',b.dataset.view===v));render();}
+function go(v){S.view=v;document.querySelectorAll('.nb').forEach(b=>b.classList.toggle('active',b.dataset.view===v));render();if(v==='admin')setTimeout(updateGHStatus,50);}
 function toast(msg,type='ok'){
   const w=document.getElementById('twrap');const e=document.createElement('div');e.className=`toast ${type}`;
   e.innerHTML=`<span>${type==='ok'?'✓':type==='err'?'✗':'ℹ'}</span>${msg}`;w.appendChild(e);setTimeout(()=>e.remove(),3500);
@@ -1526,23 +1523,40 @@ function renderAdmin(){
       </table></div>
     </div>
 
-    <div class="as"><div class="ast">☁ GitHub Gist Sync (Cloud Backup)</div>
+    <div class="as"><div class="ast">☁ GitHub Cloud Backup</div>
       <div class="card cb">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start">
+        <div style="display:grid;grid-template-columns:1fr auto;gap:16px;align-items:start;margin-bottom:14px">
           <div>
-            <div style="font-size:13px;font-weight:600;margin-bottom:5px">Sync to GitHub</div>
-            <div style="font-size:12px;color:var(--lt-muted);line-height:1.6;margin-bottom:12px">
-              Back up all visitor data to a <b>private GitHub Gist</b> in your account.<br>
-              Data auto-syncs after each change (15s delay) and can be restored from any device.
+            <div style="font-size:13px;font-weight:600;margin-bottom:5px">Automatic backup to your GitHub repository</div>
+            <div style="font-size:12px;color:var(--lt-muted);line-height:1.6">
+              Data is saved as <b>vms_backup.json</b> in your <b>kalpagamage3/lanka-tiles-vms</b> repository
+              automatically after every change (20 second delay) and can be restored on any device.<br><br>
+              You need a GitHub <b>Personal Access Token</b> with <b>repo</b> scope.
             </div>
-            <button id="gist-backup-btn" class="btn btn-navy btn-sm" onclick="gistBackupNow()">☁ Sync to GitHub Now</button>
-            <button class="btn btn-ghost btn-sm" style="margin-left:8px" onclick="showGistSetup()">⚙ Configure</button>
           </div>
-          <div id="gist-status-box" style="background:var(--lt-bg);border:1px solid var(--lt-border);border-radius:var(--r-md);padding:13px 15px;font-size:12.5px;color:var(--lt-muted)">
-            ${(()=>{const c=getGistConfig();return c.token&&c.gistId
-              ?'<span style="color:var(--green);font-weight:600">✓ Configured</span><br><span style="font-size:11.5px">Gist ID: '+esc(c.gistId.slice(0,12))+'…<br>Auto-sync: '+(c.interval>0?c.interval+' min':'off')+'</span>'
-              :'Not configured — click ⚙ Configure to set up GitHub sync.'})()}
+          <div id="gh-status-box" style="min-width:160px;background:var(--lt-bg);border:1px solid var(--lt-border);border-radius:var(--r-md);padding:12px 14px;font-size:12px;text-align:center">
+            <div id="gh-status-val">Loading…</div>
           </div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-bottom:13px">
+          <div class="fgrp" style="flex:1;min-width:260px">
+            <label class="lbl">GitHub Personal Access Token</label>
+            <input class="inp" id="gh-token-inp" type="password" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" value="">
+          </div>
+          <button class="btn btn-navy btn-sm" onclick="ghSaveTokenUI()">Save Token</button>
+        </div>
+        <div style="font-size:11.5px;color:var(--lt-muted);margin-bottom:12px;padding:10px 12px;background:rgba(27,58,107,.05);border-radius:var(--r);line-height:1.7">
+          <b>How to get a token:</b><br>
+          1. Go to <a href="https://github.com/settings/tokens/new" target="_blank" style="color:var(--lt-red)">github.com/settings/tokens</a> → Generate new token (classic)<br>
+          2. Set note: <b>VMS Backup</b> · Expiration: <b>No expiration</b><br>
+          3. Check scope: <b>☑ repo</b> (full control of private repositories)<br>
+          4. Click <b>Generate token</b> → copy the token (ghp_...) → paste above
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button id="gh-backup-btn" class="btn btn-primary btn-sm" onclick="ghBackupNow()">☁ Backup Now</button>
+          <button class="btn btn-ghost btn-sm" onclick="ghPull()">↓ Restore from GitHub</button>
+          <a href="https://github.com/kalpagamage3/lanka-tiles-vms/blob/main/vms_backup.json" 
+             target="_blank" class="btn btn-ghost btn-sm">👁 View on GitHub</a>
         </div>
       </div>
     </div>
@@ -1772,148 +1786,123 @@ function showStorageWarning(){
   document.getElementById('sw-export').onclick=()=>{exportExcel();dismiss();};
 }
 
-// ══════════════════════════════════════════════════════════════════════════════
-//  GITHUB GIST SYNC — optional cloud backup
-// ══════════════════════════════════════════════════════════════════════════════
-const GIST_KEY = 'lt_gist_config';
-
-function getGistConfig() {
-  try { return JSON.parse(localStorage.getItem(GIST_KEY)||'{}'); } catch(e){return{};}
-}
-function saveGistConfig(cfg) {
-  localStorage.setItem(GIST_KEY, JSON.stringify(cfg));
-}
-
-async function gistPush() {
-  const cfg = getGistConfig();
-  if (!cfg.token || !cfg.gistId) return false;
-  try {
-    const res = await fetch(`https://api.github.com/gists/${cfg.gistId}`, {
-      method: 'PATCH',
-      headers: {
-        'Authorization': `token ${cfg.token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        files: {
-          'vms_data.json': {
-            content: JSON.stringify(_DB, null, 2)
-          }
-        }
-      })
-    });
-    return res.ok;
-  } catch(e) { return false; }
-}
-
-async function gistPull() {
-  const cfg = getGistConfig();
-  if (!cfg.token || !cfg.gistId) return false;
-  try {
-    const res = await fetch(`https://api.github.com/gists/${cfg.gistId}`, {
-      headers: { 'Authorization': `token ${cfg.token}` }
-    });
-    if (!res.ok) return false;
-    const data = await res.json();
-    const content = data.files?.['vms_data.json']?.content;
-    if (!content) return false;
-    const saved = JSON.parse(content);
-    ['zones','hosts','visitors','preRegs','passPool','passCounters',
-     'passTotals','adminPw','idSeq','prSeq'].forEach(k=>{
-      if (saved[k] !== undefined) _DB[k] = saved[k];
-    });
-    _save();
-    return true;
-  } catch(e) { return false; }
-}
-
-async function gistBackupNow() {
-  const btn = document.getElementById('gist-backup-btn');
-  if (btn) { btn.disabled = true; btn.textContent = 'Syncing…'; }
-  const ok = await gistPush();
-  if (btn) { btn.disabled = false; btn.textContent = '☁ Sync to GitHub Now'; }
-  if (ok) toast('Data synced to GitHub Gist ✓');
-  else toast('Sync failed — check token and Gist ID in settings', 'err');
-}
-
-function showGistSetup() {
-  const cfg = getGistConfig();
-  const el = document.createElement('div'); el.className = 'mbg';
-  el.innerHTML = `<div class="modal" style="max-width:520px">
-    <div class="mh"><div class="mt">☁ GitHub Gist Sync Setup</div>
-      <button class="mc" onclick="this.closest('.mbg').remove()">×</button></div>
-    <div class="mb">
-      <div class="info-box" style="margin-bottom:14px;font-size:12.5px;line-height:1.6">
-        <b>How it works:</b> Your data is saved in this browser. Gist sync creates an automatic 
-        cloud backup to your GitHub account so you never lose data.<br><br>
-        <b>Setup:</b><br>
-        1. Go to <a href="https://github.com/settings/tokens/new" target="_blank" style="color:var(--lt-red)">github.com/settings/tokens</a> 
-           → New token (classic) → check <b>gist</b> scope → Generate<br>
-        2. Create a new Gist at <a href="https://gist.github.com" target="_blank" style="color:var(--lt-red)">gist.github.com</a> 
-           (any content, name it <b>vms_data.json</b>, make it Secret)<br>
-        3. Copy the Gist ID from the URL (the long alphanumeric code)
-      </div>
-      <div class="fg" style="margin-bottom:12px">
-        <div class="fgrp full"><label class="lbl">GitHub Personal Access Token</label>
-          <input class="inp" id="gs-token" type="password" placeholder="ghp_xxxxxxxxxxxx" 
-            value="${esc(cfg.token||'')}"></div>
-        <div class="fgrp full"><label class="lbl">Gist ID</label>
-          <input class="inp" id="gs-gistid" placeholder="e.g. a1b2c3d4e5f6..." 
-            value="${esc(cfg.gistId||'')}"></div>
-        <div class="fgrp full"><label class="lbl">Auto-sync every (minutes, 0 = off)</label>
-          <input class="inp" type="number" id="gs-interval" min="0" max="60" 
-            value="${cfg.interval||0}"></div>
-      </div>
-      <div style="display:flex;gap:9px;flex-wrap:wrap">
-        <button class="btn btn-primary" onclick="saveGistSetup(this.closest('.mbg'))">Save Settings</button>
-        <button class="btn btn-navy" onclick="gistBackupNow()">☁ Test Sync Now</button>
-        <button class="btn btn-ghost" onclick="pullFromGist(this.closest('.mbg'))">↓ Restore from Gist</button>
-        ${cfg.token?`<button class="btn btn-danger btn-sm" onclick="clearGistConfig()">Clear Credentials</button>`:''}
-      </div>
-    </div>
-  </div>`;
-  document.body.appendChild(el);
-}
-
-async function saveGistSetup(mbg) {
-  const token    = document.getElementById('gs-token')?.value.trim();
-  const gistId   = document.getElementById('gs-gistid')?.value.trim();
-  const interval = parseInt(document.getElementById('gs-interval')?.value)||0;
-  saveGistConfig({ token, gistId, interval });
-  startGistAutoSync();
-  mbg.remove();
-  toast('Gist sync settings saved');
-}
-
-async function pullFromGist(mbg) {
-  const ok = await gistPull();
-  if (ok) { mbg?.remove(); await load(); render(); toast('Data restored from GitHub Gist ✓'); }
-  else toast('Restore failed — check settings', 'err');
-}
-
-function clearGistConfig() {
-  localStorage.removeItem(GIST_KEY);
-  toast('Gist credentials cleared','info');
-  render();
-}
-
-let _gistTimer = null;
-function startGistAutoSync() {
-  if (_gistTimer) clearInterval(_gistTimer);
-  const cfg = getGistConfig();
-  if (cfg.token && cfg.gistId && cfg.interval > 0) {
-    _gistTimer = setInterval(()=>{
-      gistPush().then(ok => {
-        if (ok) console.log('[VMS] Auto-synced to Gist');
-      });
-    }, cfg.interval * 60 * 1000);
-    console.log(`[VMS] Gist auto-sync every ${cfg.interval} min`);
-  }
-}
-
-
 // ── Boot ──────────────────────────────────────────────────────────────────────
-load().then(()=>{render();setTimeout(showStorageWarning,10000);});
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  GITHUB BACKUP — writes vms_backup.json to kalpagamage3/lanka-tiles-vms
+// ══════════════════════════════════════════════════════════════════════════════
+const GH_REPO  = 'kalpagamage3/lanka-tiles-vms';
+const GH_FILE  = 'vms_backup.json';
+const GH_KEY   = 'lt_gh_token';
+const GH_SHA   = 'lt_gh_sha';   // cached SHA of last commit (required for updates)
+
+function ghGetToken(){ return localStorage.getItem(GH_KEY)||''; }
+function ghSaveToken(t){ localStorage.setItem(GH_KEY,t); }
+
+// Push current _DB to GitHub as vms_backup.json
+async function ghPush(){
+  const token=ghGetToken();
+  if(!token)return;
+  try{
+    const content=btoa(unescape(encodeURIComponent(JSON.stringify(_DB,null,2))));
+    const sha=localStorage.getItem(GH_SHA)||await ghGetSHA();
+    const body={message:'VMS auto-backup '+new Date().toISOString(),content};
+    if(sha)body.sha=sha;
+    const res=await fetch('https://api.github.com/repos/'+GH_REPO+'/contents/'+GH_FILE,{
+      method:'PUT',
+      headers:{'Authorization':'token '+token,'Content-Type':'application/json','Accept':'application/vnd.github+json'},
+      body:JSON.stringify(body)
+    });
+    if(res.ok){
+      const d=await res.json();
+      localStorage.setItem(GH_SHA,d.content?.sha||'');
+      localStorage.setItem('lt_gh_last','Last backup: '+new Date().toLocaleString('en-GB'));
+      updateGHStatus();
+    }else if(res.status===409){
+      // SHA conflict — fetch fresh SHA and retry once
+      localStorage.removeItem(GH_SHA);
+      const freshSHA=await ghGetSHA();
+      if(freshSHA){localStorage.setItem(GH_SHA,freshSHA);ghPush();}
+    }else{
+      console.warn('[VMS] GitHub backup failed:',res.status);
+    }
+  }catch(e){console.warn('[VMS] GitHub backup error:',e.message);}
+}
+
+// Get current SHA of vms_backup.json (needed to update an existing file)
+async function ghGetSHA(){
+  const token=ghGetToken();
+  if(!token)return'';
+  try{
+    const res=await fetch('https://api.github.com/repos/'+GH_REPO+'/contents/'+GH_FILE,{
+      headers:{'Authorization':'token '+token,'Accept':'application/vnd.github+json'}
+    });
+    if(!res.ok)return'';
+    const d=await res.json();
+    return d.sha||'';
+  }catch(e){return'';}
+}
+
+// Restore _DB from GitHub backup
+async function ghPull(){
+  const token=ghGetToken();
+  if(!token){toast('Enter GitHub token first','err');return;}
+  try{
+    const res=await fetch('https://api.github.com/repos/'+GH_REPO+'/contents/'+GH_FILE,{
+      headers:{'Authorization':'token '+token,'Accept':'application/vnd.github+json'}
+    });
+    if(!res.ok){toast('Backup file not found on GitHub','err');return;}
+    const d=await res.json();
+    const raw=decodeURIComponent(escape(atob(d.content.replace(/\n/g,''))));
+    const saved=JSON.parse(raw);
+    ['zones','hosts','visitors','preRegs','passPool','passCounters','passTotals','adminPw','idSeq','prSeq']
+      .forEach(k=>{if(saved[k]!==undefined)_DB[k]=saved[k];});
+    _save();
+    await load();render();
+    toast('Data restored from GitHub backup ✓');
+  }catch(e){toast('Restore failed: '+e.message,'err');}
+}
+
+// Immediate manual backup
+async function ghBackupNow(){
+  const btn=document.getElementById('gh-backup-btn');
+  if(btn){btn.disabled=true;btn.textContent='Backing up…';}
+  clearTimeout(_save._t);  // cancel debounce
+  const token=ghGetToken();
+  if(!token){
+    if(btn){btn.disabled=false;btn.textContent='☁ Backup Now';}
+    toast('Enter your GitHub token first','err');
+    return;
+  }
+  await ghPush();
+  if(btn){btn.disabled=false;btn.textContent='☁ Backup Now';}
+  const last=localStorage.getItem('lt_gh_last')||'';
+  if(last)toast(last);
+}
+
+// Update backup status display
+function updateGHStatus(){
+  const el=document.getElementById('gh-status-val');
+  if(!el)return;
+  const last=localStorage.getItem('lt_gh_last');
+  const token=ghGetToken();
+  if(!token)el.innerHTML='<span style="color:var(--lt-muted)">Token not set</span>';
+  else if(last)el.innerHTML='<span style="color:var(--green);font-weight:600">✓ Active</span><br><span style="font-size:11.5px">'+last+'</span>';
+  else el.innerHTML='<span style="color:var(--yellow)">Token set — no backup yet</span>';
+}
+
+// Save token from input
+function ghSaveTokenUI(){
+  const t=(document.getElementById('gh-token-inp')?.value||'').trim();
+  if(!t){toast('Enter a token','err');return;}
+  ghSaveToken(t);
+  localStorage.removeItem(GH_SHA); // clear cached SHA so next push fetches fresh
+  toast('Token saved — backing up now…');
+  ghBackupNow();
+}
+
+
+load().then(()=>{render();updateGHStatus();setTimeout(showStorageWarning,10000);});
 
 
 
