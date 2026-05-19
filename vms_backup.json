@@ -1,0 +1,84 @@
+{
+  "zones": [
+    {
+      "name": "HR",
+      "color": "green"
+    },
+    {
+      "name": "Accounts",
+      "color": "green"
+    },
+    {
+      "name": "TPM",
+      "color": "yellow"
+    },
+    {
+      "name": "Factory office",
+      "color": "yellow"
+    },
+    {
+      "name": "Stores",
+      "color": "amber"
+    },
+    {
+      "name": "Engineering",
+      "color": "amber"
+    },
+    {
+      "name": "Special Projects",
+      "color": "amber"
+    },
+    {
+      "name": "Lab",
+      "color": "amber"
+    },
+    {
+      "name": "Powder preparation",
+      "color": "red"
+    },
+    {
+      "name": "Press/Glazing Lines",
+      "color": "red"
+    },
+    {
+      "name": "Glaze Preparation",
+      "color": "red"
+    },
+    {
+      "name": "Sorting",
+      "color": "red"
+    },
+    {
+      "name": "Mosaic",
+      "color": "red"
+    },
+    {
+      "name": "Polishing",
+      "color": "red"
+    }
+  ],
+  "hosts": [],
+  "visitors": [],
+  "preRegs": [],
+  "passPool": {
+    "G": [],
+    "Y": [],
+    "A": [],
+    "R": []
+  },
+  "passCounters": {
+    "G": 0,
+    "Y": 0,
+    "A": 0,
+    "R": 0
+  },
+  "passTotals": {
+    "G": 0,
+    "Y": 0,
+    "A": 0,
+    "R": 0
+  },
+  "adminPw": "lanka2026",
+  "idSeq": 1,
+  "prSeq": 1
+}
