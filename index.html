@@ -3,6 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#122a52">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Lanka Tiles — Visitor Management System</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Crect width=%22100%22 height=%22100%22 rx=%2218%22 fill=%22%23c8102e%22/%3E%3Ctext y=%2268%22 x=%2250%22 text-anchor=%22middle%22 font-family=%22Arial%22 font-size=%2244%22 font-weight=%22bold%22 fill=%22white%22%3Evms%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -224,32 +228,153 @@ tbody td{padding:9px 13px;vertical-align:middle}
 .section-lbl::after{content:'';flex:1;height:1px;background:var(--lt-light)}
 .info-box{background:rgba(27,58,107,.05);border:1px solid rgba(27,58,107,.12);border-radius:var(--r-md);padding:12px 14px;font-size:12.5px}
 .driver-block{background:#fdf8f8;border:1px solid var(--lt-red-bd);border-radius:var(--r-md);padding:14px;margin-top:10px}
+/* ══ MOBILE HAMBURGER BUTTON ══════════════════════════════════════════════════ */
+.mob-bar{
+  display:none;position:fixed;top:0;left:0;right:0;height:52px;
+  background:var(--lt-navy-dk);z-index:100;
+  align-items:center;justify-content:space-between;padding:0 14px;
+  border-bottom:2px solid var(--lt-red);box-shadow:0 2px 8px rgba(0,0,0,.2);
+}
+.mob-logo{font-family:'Raleway',sans-serif;font-size:13px;font-weight:800;
+  color:#fff;letter-spacing:.15em;text-transform:uppercase}
+.mob-logo span{color:var(--lt-red)}
+.mob-burger{background:none;border:none;cursor:pointer;padding:8px;
+  display:flex;flex-direction:column;gap:5px}
+.mob-burger span{display:block;width:22px;height:2px;background:#fff;
+  border-radius:2px;transition:all .2s}
+.mob-burger.open span:nth-child(1){transform:translateY(7px) rotate(45deg)}
+.mob-burger.open span:nth-child(2){opacity:0}
+.mob-burger.open span:nth-child(3){transform:translateY(-7px) rotate(-45deg)}
+.mob-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);
+  z-index:55;backdrop-filter:blur(2px)}
+.mob-overlay.show{display:block}
 
-@media(max-width:960px){.sg{grid-template-columns:1fr 1fr}.fg{grid-template-columns:1fr}.zg{grid-template-columns:1fr 1fr}.sidebar{width:200px}.main{margin-left:200px;padding:18px 20px}}
+/* ══ BOTTOM NAV (mobile) ═══════════════════════════════════════════════════════ */
+.bot-nav{
+  display:none;position:fixed;bottom:0;left:0;right:0;
+  background:var(--lt-navy-dk);border-top:2px solid rgba(255,255,255,.1);
+  z-index:60;padding:4px 0 env(safe-area-inset-bottom,4px);
+}
+.bot-nav-inner{display:flex;justify-content:space-around}
+.bni{flex:1;display:flex;flex-direction:column;align-items:center;
+  gap:2px;padding:6px 4px;cursor:pointer;border:none;background:none;
+  color:rgba(255,255,255,.5);font-size:9.5px;font-weight:600;
+  font-family:'Open Sans',sans-serif;letter-spacing:.04em;
+  transition:all .15s;position:relative}
+.bni.active{color:#fff}
+.bni.active svg{opacity:1}
+.bni svg{opacity:.45;transition:opacity .15s}
+.bni-dot{position:absolute;top:4px;right:calc(50% - 14px);width:7px;height:7px;
+  background:var(--lt-red);border-radius:50%;display:none}
+.bni-dot.show{display:block}
 
+/* ══ RESPONSIVE BREAKPOINTS ═══════════════════════════════════════════════════ */
 @media(max-width:960px){
   .sg{grid-template-columns:1fr 1fr}
   .fg{grid-template-columns:1fr}
-  .zg{grid-template-columns:1fr 1fr}
+  .zg{grid-template-columns:repeat(3,1fr)}
   .sidebar{width:200px}
-  .main{margin-left:200px;padding:18px 20px}
-  .tw table{font-size:11.5px}
-  thead th,tbody td{padding:7px 9px}
+  .main{margin-left:200px;padding:18px 16px}
 }
-@media(max-width:700px){
-  .sidebar{transform:translateX(-100%);transition:transform .25s}
-  .sidebar.open{transform:none}
-  .main{margin-left:0;padding:14px 12px}
-  .sg{grid-template-columns:1fr 1fr}
-  .tw{font-size:11px}
-  .btn{padding:7px 12px;font-size:12px}
+
+@media(max-width:680px){
+  /* Show mobile bar + bottom nav, hide sidebar */
+  .mob-bar{display:flex}
+  .bot-nav{display:block}
+  .sidebar{
+    transform:translateX(-100%);transition:transform .25s ease;
+    width:260px;z-index:60;top:0
+  }
+  .sidebar.mob-open{transform:translateX(0)}
+  .main{
+    margin-left:0!important;
+    padding:68px 12px 72px;
+    min-height:100vh
+  }
+  /* Stack stat grid */
+  .sg{grid-template-columns:1fr 1fr;gap:9px;margin-bottom:12px}
+  .sv{font-size:22px}
+  .sc{padding:12px 13px}
+  /* Full-width forms */
+  .fg{grid-template-columns:1fr!important;gap:9px}
+  .zg{grid-template-columns:repeat(2,1fr);gap:5px}
+  .zb{padding:8px 6px;font-size:11.5px}
+  /* Cards full width */
+  .card{border-radius:8px}
+  .cb{padding:13px 12px}
+  .ch{padding:10px 12px}
+  .pt{font-size:17px}
+  /* Page header */
+  .ph{margin-bottom:16px}
+  /* Modals full screen */
+  .mbg{padding:0;align-items:flex-end}
+  .modal{
+    border-radius:16px 16px 0 0;
+    max-width:100%!important;
+    max-height:92vh;
+    width:100%
+  }
+  .mh{padding:16px 16px 0}
+  .mb{padding:12px 16px 20px}
+  /* Tables: horizontal scroll */
+  .tw{overflow-x:auto;-webkit-overflow-scrolling:touch;border-radius:8px}
+  table{min-width:520px;font-size:12px}
+  thead th,tbody td{padding:8px 10px}
+  /* Buttons */
+  .btn{padding:9px 14px;font-size:13px}
+  .btn-sm{padding:8px 13px;font-size:12.5px}
+  .btn-xs{padding:6px 10px;font-size:12px}
+  /* Toolbar */
+  .tb{flex-direction:column;align-items:stretch}
+  .si{width:100%!important}
+  /* Pass cards */
+  .pp{min-height:90px}
+  /* Dashboard pass grid */
+  .pass-avail-grid{grid-template-columns:1fr 1fr!important}
+  /* Search input wider */
+  input.si{width:100%!important}
+  /* Driver rows */
+  .driver-row-grid{grid-template-columns:1fr 1fr!important}
+  /* Admin grid */
+  .as{margin-bottom:18px}
+  /* Two-col grids */
+  [style*="grid-template-columns:1fr 1fr"]{grid-template-columns:1fr!important}
+  [style*="grid-template-columns:repeat(4,1fr)"]{grid-template-columns:1fr 1fr!important}
+  [style*="grid-template-columns:repeat(3,1fr)"]{grid-template-columns:1fr 1fr!important}
+  /* Checkin 2-col layout */
+  [style*="grid-template-columns:1fr 1fr;gap:18px"]{grid-template-columns:1fr!important}
+  /* Pre-reg type buttons */
+  .pr-type-btns{flex-direction:column;width:100%}
+  .pr-type-btns .btn{justify-content:center}
+  /* Host template */
+  .host-upload-zone{padding:16px}
+  /* Font size base */
+  body{font-size:14px}
+  /* Chips wrap */
+  .chip{margin-bottom:2px}
+}
+
+@media(max-width:380px){
+  .sg{grid-template-columns:1fr}
+  .zg{grid-template-columns:1fr 1fr}
+  .mob-logo{font-size:11px}
 }
 </style>
 </head>
 <body>
-<div class="app">
 
-<aside class="sidebar">
+<!-- Mobile top bar -->
+<div class="mob-bar" id="mob-bar">
+  <div class="mob-logo">Lanka<span> Tiles</span> VMS</div>
+  <button class="mob-burger" id="mob-burger" onclick="toggleSidebar()" aria-label="Menu">
+    <span></span><span></span><span></span>
+  </button>
+</div>
+<!-- Sidebar overlay -->
+<div class="mob-overlay" id="mob-overlay" onclick="closeSidebar()"></div>
+
+<div class="app">
+<aside class="sidebar" id="sidebar">
   <div class="logo-wrap">
     <div class="logo-main">Lanka Tiles</div>
     <div class="logo-sub">Visitor Management</div>
@@ -288,6 +413,34 @@ tbody td{padding:9px 13px;vertical-align:middle}
 
 <main class="main" id="main"></main>
 </div>
+
+<!-- Mobile bottom navigation -->
+<nav class="bot-nav">
+  <div class="bot-nav-inner">
+    <button class="bni active" id="bn-dashboard" onclick="go('dashboard')">
+      <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      Dashboard
+    </button>
+    <button class="bni" id="bn-prereg" onclick="go('prereg')">
+      <div class="bni-dot" id="bni-dot-prereg"></div>
+      <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4"/><path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z"/></svg>
+      Pre-Reg
+    </button>
+    <button class="bni" id="bn-checkin" onclick="go('checkin')">
+      <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
+      Check In
+    </button>
+    <button class="bni" id="bn-log" onclick="go('log')">
+      <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/></svg>
+      Log
+    </button>
+    <button class="bni" id="bn-admin" onclick="go('admin')">
+      <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M12 14c-5 0-8 2-8 3v1h16v-1c0-1-3-3-8-3z"/></svg>
+      Admin
+    </button>
+  </div>
+</nav>
+
 <div class="toast-wrap" id="twrap"></div>
 
 
@@ -317,6 +470,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
 
 </script>
 <script>
+
 
 
 
@@ -600,11 +754,19 @@ async function load(){
   S.visitors=d.visitors||[];S.zones=d.zones||[];S.hosts=d.hosts||[];
   S.passPool=d.passPool||{};S.passTotals=d.passTotals||{};S.preRegs=d.preRegs||[];
   document.getElementById('live-count').textContent=S.visitors.filter(v=>v.status==='in').length+' on site';
+  updateBottomNav(S.view||'dashboard');
   const n=S.preRegs.filter(p=>p.status==='pending').length;
   const pb=document.getElementById('pending-badge');
   if(pb){pb.style.display=n>0?'inline-flex':'none';pb.textContent=n;}
 }
-function go(v){S.view=v;document.querySelectorAll('.nb').forEach(b=>b.classList.toggle('active',b.dataset.view===v));render();if(v==='admin')setTimeout(updateGHStatus,50);}
+function go(v){
+  S.view=v;
+  document.querySelectorAll('.nb').forEach(b=>b.classList.toggle('active',b.dataset.view===v));
+  render();
+  closeSidebar();
+  updateBottomNav(v);
+  if(v==='admin')setTimeout(updateGHStatus,50);
+}
 function toast(msg,type='ok'){
   const w=document.getElementById('twrap');const e=document.createElement('div');e.className=`toast ${type}`;
   e.innerHTML=`<span>${type==='ok'?'✓':type==='err'?'✗':'ℹ'}</span>${msg}`;w.appendChild(e);setTimeout(()=>e.remove(),3500);
@@ -1902,7 +2064,32 @@ function ghSaveTokenUI(){
 }
 
 
+// ── Mobile navigation ─────────────────────────────────────────────────────────
+function toggleSidebar(){
+  const sb=document.getElementById('sidebar');
+  const ov=document.getElementById('mob-overlay');
+  const bg=document.getElementById('mob-burger');
+  const open=sb?.classList.toggle('mob-open');
+  ov?.classList.toggle('show',open);
+  bg?.classList.toggle('open',open);
+}
+function closeSidebar(){
+  document.getElementById('sidebar')?.classList.remove('mob-open');
+  document.getElementById('mob-overlay')?.classList.remove('show');
+  document.getElementById('mob-burger')?.classList.remove('open');
+}
+function updateBottomNav(v){
+  document.querySelectorAll('.bni').forEach(b=>{
+    b.classList.toggle('active', b.id==='bn-'+v);
+  });
+  // Show pending badge on pre-reg bottom nav button
+  const n=S.preRegs?.filter(p=>p.status==='pending').length||0;
+  const dot=document.getElementById('bni-dot-prereg');
+  if(dot)dot.classList.toggle('show', n>0);
+}
+
 load().then(()=>{render();updateGHStatus();setTimeout(showStorageWarning,10000);});
+
 
 
 
