@@ -477,6 +477,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
 
 
 
+
 // ══════════════════════════════════════════════════════════════════════════════
 //  Lanka Tiles PLC — Visitor Management System  (Offline v5)
 // ══════════════════════════════════════════════════════════════════════════════
@@ -1942,21 +1943,35 @@ async function fbInit(){
   const cfg = fbGetConfig();
   if(!cfg.apiKey || !cfg.projectId){ _fbEnabled=false; return false; }
   try{
-    // Load Firebase if not already loaded
+    // Load Firebase SDK 9 compat if not already loaded
     if(!window.firebase){
-      await loadScript('https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js');
-      await loadScript('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js');
+      await loadScript('https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js');
+      await loadScript('https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js');
     }
-    if(!_fbApp){
-      _fbApp = window.firebase.initializeApp({
-        apiKey:      cfg.apiKey,
-        authDomain:  cfg.projectId+'.firebaseapp.com',
-        projectId:   cfg.projectId,
-      }, 'vms-app');
-      _fbDb = _fbApp.firestore();
-      // Enable offline persistence so app works even when offline
-      await _fbDb.enablePersistence({synchronizeTabs:true}).catch(()=>{});
+    // Delete existing app with same name to avoid "already exists" error on reconnect
+    if(_fbApp){
+      try{ await _fbApp.delete(); }catch(e){}
+      _fbApp=null; _fbDb=null;
     }
+    // Use the full config the user pasted
+    const firebaseConfig = {
+      apiKey:            cfg.apiKey,
+      authDomain:        cfg.authDomain  || cfg.projectId+'.firebaseapp.com',
+      projectId:         cfg.projectId,
+      storageBucket:     cfg.storageBucket || cfg.projectId+'.appspot.com',
+      messagingSenderId: cfg.messagingSenderId || '',
+      appId:             cfg.appId || '',
+    };
+    // Use unique app name to avoid conflicts
+    const appName = 'vms-'+Date.now();
+    _fbApp = window.firebase.initializeApp(firebaseConfig, appName);
+    _fbDb  = _fbApp.firestore();
+    // Enable offline persistence (may fail if another tab has it — that is OK)
+    await _fbDb.enablePersistence({synchronizeTabs:true}).catch(e=>{
+      console.log('[VMS] Persistence note:', e.code);
+    });
+    // Test connection with a quick read
+    await _fbDb.collection('vms').doc('ping').set({t: Date.now()});
     _fbEnabled = true;
     console.log('[VMS] Firebase connected:', cfg.projectId);
     return true;
@@ -2057,58 +2072,103 @@ function _save(){
 // ── Admin UI: Sync Settings section ──────────────────────────────────────────
 function renderSyncSettings(){
   const cfg = fbGetConfig();
+  const connected = _fbEnabled && cfg.projectId;
   return `
     <div class="as"><div class="ast">🔄 Real-Time Sync (Firebase)</div>
       <div class="card cb">
-        <div style="display:grid;grid-template-columns:1fr auto;gap:16px;align-items:start;margin-bottom:14px;flex-wrap:wrap">
-          <div>
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;margin-bottom:14px;flex-wrap:wrap">
+          <div style="flex:1;min-width:200px">
             <div style="font-size:13px;font-weight:600;margin-bottom:5px">Multi-device real-time sync</div>
             <div style="font-size:12px;color:var(--lt-muted);line-height:1.7">
-              Data syncs instantly across all devices (phones, tablets, PCs).<br>
-              Uses <b>Google Firebase Firestore</b> — free tier, no credit card needed.<br>
-              Free: 50,000 reads/day · 20,000 writes/day · works offline too.
+              Data syncs instantly across all devices — phones, tablets, PCs.<br>
+              Uses <b>Google Firebase</b> free tier · 50K reads/day · works offline.
             </div>
           </div>
-          <div id="sync-status" style="min-width:130px;background:var(--lt-bg);border:1px solid var(--lt-border);border-radius:var(--r-md);padding:11px 13px;font-size:12.5px;text-align:center">
+          <div id="sync-status" style="min-width:140px;background:var(--lt-bg);border:1px solid var(--lt-border);border-radius:var(--r-md);padding:11px 13px;font-size:12.5px;text-align:center;flex-shrink:0">
             Loading…
           </div>
         </div>
-        <div class="fg" style="margin-bottom:12px">
-          <div class="fgrp full"><label class="lbl">Firebase API Key <span class="req">*</span></label>
-            <input class="inp" id="fb-apikey" type="password" placeholder="AIzaSy…" value="${esc(cfg.apiKey||'')}"></div>
-          <div class="fgrp full"><label class="lbl">Firebase Project ID <span class="req">*</span></label>
-            <input class="inp" id="fb-project" placeholder="your-project-id" value="${esc(cfg.projectId||'')}"></div>
+
+        ${connected ? `
+        <div style="background:var(--green-bg);border:1px solid var(--green-bd);border-radius:var(--r-md);padding:10px 13px;font-size:12.5px;margin-bottom:13px">
+          <b style="color:var(--green)">🟢 Connected to: ${esc(cfg.projectId)}</b><br>
+          <span style="color:var(--lt-muted);font-size:11.5px">Real-time sync is active on all devices sharing this config</span>
+        </div>` : ''}
+
+        <div class="fgrp" style="margin-bottom:10px">
+          <label class="lbl">Paste your Firebase config <span class="req">*</span></label>
+          <textarea class="inp" id="fb-config-paste" rows="7"
+            style="font-family:monospace;font-size:11.5px;resize:vertical"
+            placeholder='Paste the full firebaseConfig object from Firebase console:\n\nconst firebaseConfig = {\n  apiKey: "AIzaSy...",\n  authDomain: "your-project.firebaseapp.com",\n  projectId: "your-project",\n  ...\n};'>${cfg.apiKey ? 'Already saved — paste new config to update, or leave blank to keep current.' : ''}</textarea>
         </div>
-        <div style="font-size:11.5px;color:var(--lt-muted);padding:11px 13px;background:rgba(27,58,107,.05);border-radius:var(--r);line-height:1.8;margin-bottom:13px">
-          <b>How to set up Firebase (free, 5 minutes):</b><br>
-          1. Go to <a href="https://console.firebase.google.com" target="_blank" style="color:var(--lt-red)">console.firebase.google.com</a> → <b>Add project</b><br>
-          2. Name it (e.g. <b>lanka-tiles-vms</b>) → disable Google Analytics → <b>Create project</b><br>
-          3. Click <b>Firestore Database</b> (left menu) → <b>Create database</b> → <b>Start in test mode</b> → your region → <b>Enable</b><br>
-          4. Click ⚙ <b>Project settings</b> (top left gear) → scroll to <b>Your apps</b> → click <b>&lt;/&gt;</b> (Web) → register app<br>
-          5. Copy <b>apiKey</b> and <b>projectId</b> from the config shown → paste above<br>
-          6. Click <b>Save &amp; Connect</b>
+
+        <div style="font-size:11.5px;color:var(--lt-muted);padding:11px 13px;background:rgba(27,58,107,.05);border-radius:var(--r);line-height:1.9;margin-bottom:13px">
+          <b>How to get your Firebase config (free, 5 minutes):</b><br>
+          1. Go to <a href="https://console.firebase.google.com" target="_blank" style="color:var(--lt-red)">console.firebase.google.com</a> → <b>Add project</b> → name it → <b>Create</b><br>
+          2. Left menu → <b>Firestore Database</b> → <b>Create database</b> → <b>Start in test mode</b> → Enable<br>
+          3. ⚙ Project settings (gear icon) → <b>Your apps</b> → click <b>&lt;/&gt;</b> Web → register app<br>
+          4. Copy the <b>entire firebaseConfig = { … }</b> block → paste in the box above<br>
+          5. Click <b>Save &amp; Connect</b>
         </div>
+
         <div style="display:flex;gap:8px;flex-wrap:wrap">
           <button class="btn btn-primary btn-sm" onclick="fbSaveAndConnect()">💾 Save &amp; Connect</button>
+          ${connected ? `
           <button class="btn btn-ghost btn-sm" onclick="fbSyncNow()">🔄 Sync Now</button>
           <button class="btn btn-ghost btn-sm" onclick="fbRestoreFromCloud()">↓ Restore from Cloud</button>
-          <button class="btn btn-danger btn-sm" onclick="fbDisconnect()">Disconnect</button>
+          <button class="btn btn-danger btn-sm" onclick="fbDisconnect()">Disconnect</button>` : ''}
         </div>
       </div>
     </div>`;
 }
 
 async function fbSaveAndConnect(){
-  const apiKey  = document.getElementById('fb-apikey')?.value.trim();
-  const project = document.getElementById('fb-project')?.value.trim();
-  if(!apiKey||!project){ toast('Enter API Key and Project ID','err'); return; }
-  fbSaveConfig({ apiKey, projectId:project });
-  _fbApp=null; _fbDb=null;  // reset so fbInit re-initialises
+  // Parse the pasted Firebase config object (handles both JS object and JSON)
+  const raw = (document.getElementById('fb-config-paste')?.value||'').trim();
+  let parsed = null;
+  if(raw){
+    try{
+      // Try JSON first
+      parsed = JSON.parse(raw);
+    }catch(e){
+      // Try extracting from JS object literal like: const firebaseConfig = { ... }
+      try{
+        const m = raw.match(/\{[\s\S]+\}/);
+        if(m){
+          // Convert JS object to JSON: wrap keys in quotes
+          const jsonStr = m[0]
+            .replace(/\/\/.*/g,'')           // remove comments
+            .replace(/(\w+)\s*:/g,'"$1":')   // quote keys
+            .replace(/,\s*\}/g,'}')          // remove trailing commas
+            .replace(/,\s*\]/g,']');
+          parsed = JSON.parse(jsonStr);
+        }
+      }catch(e2){}
+    }
+    if(!parsed || !parsed.apiKey || !parsed.projectId){
+      toast('Could not parse config — paste the full firebaseConfig object','err');
+      return;
+    }
+    fbSaveConfig(parsed);
+  } else {
+    // Use manually entered fields as fallback
+    const apiKey  = document.getElementById('fb-apikey')?.value.trim();
+    const project = document.getElementById('fb-project')?.value.trim();
+    if(!apiKey||!project){ toast('Paste your Firebase config or enter API Key and Project ID','err'); return; }
+    fbSaveConfig({ apiKey, projectId:project });
+  }
   updateSyncStatus('syncing');
+  const btn = document.querySelector('[onclick="fbSaveAndConnect()"]');
+  if(btn){ btn.disabled=true; btn.textContent='Connecting…'; }
   const ok = await fbInit();
-  if(!ok){ toast('Connection failed — check API Key and Project ID','err'); updateSyncStatus('error','Check credentials'); return; }
+  if(btn){ btn.disabled=false; btn.textContent='💾 Save & Connect'; }
+  if(!ok){
+    toast('Connection failed — check your Firebase config','err');
+    updateSyncStatus('error','Connection failed');
+    return;
+  }
   fbStartListener();
-  toast('Connected! Syncing data…');
+  toast('Connected! Real-time sync is active ✓');
   render();
 }
 
@@ -2155,6 +2215,7 @@ async function fbStart(){
 load().then(()=>{render();updateBottomNav(S.view||'dashboard');
   fbStart().then(()=>setTimeout(()=>updateSyncStatus(_fbEnabled?'synced':'offline'),100));
 });
+
 
 
 
