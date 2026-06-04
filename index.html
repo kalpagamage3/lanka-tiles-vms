@@ -6,7 +6,6 @@
 <meta name="theme-color" content="#122a52">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>Lanka Tiles — Visitor Management System</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22%3E%3Crect width=%22100%22 height=%22100%22 rx=%2218%22 fill=%22%23c8102e%22/%3E%3Ctext y=%2268%22 x=%2250%22 text-anchor=%22middle%22 font-family=%22Arial%22 font-size=%2244%22 font-weight=%22bold%22 fill=%22white%22%3Evms%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -477,6 +476,7 @@ var o=[];var l=Array.isArray(e);for(f=n.s.c;f<=n.e.c;++f)s[f]=ya(f);for(var c=n.
 
 
 
+
 // ══════════════════════════════════════════════════════════════════════════════
 //  Lanka Tiles PLC — Visitor Management System  (Offline v5)
 // ══════════════════════════════════════════════════════════════════════════════
@@ -518,12 +518,7 @@ function _ret(pass){if(!pass)return;const p=pass[0];if(['G','Y','A','R'].include
 
 // ── Persistence ───────────────────────────────────────────────────────────────
 const _KEY='lt_vms_v5';
-function _save(){
-  try{localStorage.setItem(_KEY,JSON.stringify(_DB));}catch(e){}
-  // debounced GitHub push — 20s after last change
-  clearTimeout(_save._t);
-  _save._t=setTimeout(ghPush,20000);
-}
+function _save(){try{localStorage.setItem(_KEY,JSON.stringify(_DB));}catch(e){}}
 function _initDB(){
   try{
     const raw=['lt_vms_v5','lt_vms_v4','lanka_tiles_vms_v3','lanka_tiles_vms'].reduce((a,k)=>a||localStorage.getItem(k),null);
@@ -765,7 +760,7 @@ function go(v){
   render();
   closeSidebar();
   updateBottomNav(v);
-  if(v==='admin')setTimeout(updateGHStatus,50);
+  if(v==='admin') setTimeout(()=>updateSyncStatus(_fbEnabled?'synced':'offline'),50);
 }
 function toast(msg,type='ok'){
   const w=document.getElementById('twrap');const e=document.createElement('div');e.className=`toast ${type}`;
@@ -1685,43 +1680,7 @@ function renderAdmin(){
       </table></div>
     </div>
 
-    <div class="as"><div class="ast">☁ GitHub Cloud Backup</div>
-      <div class="card cb">
-        <div style="display:grid;grid-template-columns:1fr auto;gap:16px;align-items:start;margin-bottom:14px">
-          <div>
-            <div style="font-size:13px;font-weight:600;margin-bottom:5px">Automatic backup to your GitHub repository</div>
-            <div style="font-size:12px;color:var(--lt-muted);line-height:1.6">
-              Data is saved as <b>vms_backup.json</b> in your <b>kalpagamage3/lanka-tiles-vms</b> repository
-              automatically after every change (20 second delay) and can be restored on any device.<br><br>
-              You need a GitHub <b>Personal Access Token</b> with <b>repo</b> scope.
-            </div>
-          </div>
-          <div id="gh-status-box" style="min-width:160px;background:var(--lt-bg);border:1px solid var(--lt-border);border-radius:var(--r-md);padding:12px 14px;font-size:12px;text-align:center">
-            <div id="gh-status-val">Loading…</div>
-          </div>
-        </div>
-        <div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;margin-bottom:13px">
-          <div class="fgrp" style="flex:1;min-width:260px">
-            <label class="lbl">GitHub Personal Access Token</label>
-            <input class="inp" id="gh-token-inp" type="password" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" value="">
-          </div>
-          <button class="btn btn-navy btn-sm" onclick="ghSaveTokenUI()">Save Token</button>
-        </div>
-        <div style="font-size:11.5px;color:var(--lt-muted);margin-bottom:12px;padding:10px 12px;background:rgba(27,58,107,.05);border-radius:var(--r);line-height:1.7">
-          <b>How to get a token:</b><br>
-          1. Go to <a href="https://github.com/settings/tokens/new" target="_blank" style="color:var(--lt-red)">github.com/settings/tokens</a> → Generate new token (classic)<br>
-          2. Set note: <b>VMS Backup</b> · Expiration: <b>No expiration</b><br>
-          3. Check scope: <b>☑ repo</b> (full control of private repositories)<br>
-          4. Click <b>Generate token</b> → copy the token (ghp_...) → paste above
-        </div>
-        <div style="display:flex;gap:8px;flex-wrap:wrap">
-          <button id="gh-backup-btn" class="btn btn-primary btn-sm" onclick="ghBackupNow()">☁ Backup Now</button>
-          <button class="btn btn-ghost btn-sm" onclick="ghPull()">↓ Restore from GitHub</button>
-          <a href="https://github.com/kalpagamage3/lanka-tiles-vms/blob/main/vms_backup.json" 
-             target="_blank" class="btn btn-ghost btn-sm">👁 View on GitHub</a>
-        </div>
-      </div>
-    </div>
+    ${renderSyncSettings()}
 
     <div class="as"><div class="ast">Settings</div>
       <div class="card cb" style="max-width:380px">
@@ -1930,139 +1889,8 @@ function exportCSV(){
 
 
 
-function showStorageWarning(){
-  const dismissed=sessionStorage.getItem('lt_storage_warn');
-  if(dismissed)return;
-  const dismiss=()=>{document.getElementById('storage-warn')?.remove();sessionStorage.setItem('lt_storage_warn','1');};
-  const w=document.createElement('div');
-  w.id='storage-warn';
-  w.style.cssText='position:fixed;bottom:70px;right:20px;z-index:998;max-width:320px;background:#1a2333;color:#fff;border-left:3px solid #f59e0b;border-radius:8px;padding:12px 14px;font-size:12.5px;box-shadow:0 4px 16px rgba(0,0,0,.2)';
-  w.innerHTML='<div style="font-weight:700;margin-bottom:4px;color:#fbbf24">⚠ Data Storage Notice</div>'
-    +'<div style="color:rgba(255,255,255,.8);line-height:1.5">Data is saved in this browser only. Clearing browser data or using a different device will erase it.</div>'
-    +'<div style="margin-top:8px;display:flex;gap:8px">'
-    +'<button id="sw-dismiss" style="background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);color:#fff;padding:4px 10px;border-radius:5px;cursor:pointer;font-size:11.5px">Dismiss</button>'
-    +'<button id="sw-export" style="background:#f59e0b;border:none;color:#1a2333;padding:4px 10px;border-radius:5px;cursor:pointer;font-weight:700;font-size:11.5px">Export Backup Now</button>'
-    +'</div>';
-  document.body.appendChild(w);
-  document.getElementById('sw-dismiss').onclick=dismiss;
-  document.getElementById('sw-export').onclick=()=>{exportExcel();dismiss();};
-}
 
 // ── Boot ──────────────────────────────────────────────────────────────────────
-
-// ══════════════════════════════════════════════════════════════════════════════
-//  GITHUB BACKUP — writes vms_backup.json to kalpagamage3/lanka-tiles-vms
-// ══════════════════════════════════════════════════════════════════════════════
-const GH_REPO  = 'kalpagamage3/lanka-tiles-vms';
-const GH_FILE  = 'vms_backup.json';
-const GH_KEY   = 'lt_gh_token';
-const GH_SHA   = 'lt_gh_sha';   // cached SHA of last commit (required for updates)
-
-function ghGetToken(){ return localStorage.getItem(GH_KEY)||''; }
-function ghSaveToken(t){ localStorage.setItem(GH_KEY,t); }
-
-// Push current _DB to GitHub as vms_backup.json
-async function ghPush(){
-  const token=ghGetToken();
-  if(!token)return;
-  try{
-    const content=btoa(unescape(encodeURIComponent(JSON.stringify(_DB,null,2))));
-    const sha=localStorage.getItem(GH_SHA)||await ghGetSHA();
-    const body={message:'VMS auto-backup '+new Date().toISOString(),content};
-    if(sha)body.sha=sha;
-    const res=await fetch('https://api.github.com/repos/'+GH_REPO+'/contents/'+GH_FILE,{
-      method:'PUT',
-      headers:{'Authorization':'token '+token,'Content-Type':'application/json','Accept':'application/vnd.github+json'},
-      body:JSON.stringify(body)
-    });
-    if(res.ok){
-      const d=await res.json();
-      localStorage.setItem(GH_SHA,d.content?.sha||'');
-      localStorage.setItem('lt_gh_last','Last backup: '+new Date().toLocaleString('en-GB'));
-      updateGHStatus();
-    }else if(res.status===409){
-      // SHA conflict — fetch fresh SHA and retry once
-      localStorage.removeItem(GH_SHA);
-      const freshSHA=await ghGetSHA();
-      if(freshSHA){localStorage.setItem(GH_SHA,freshSHA);ghPush();}
-    }else{
-      console.warn('[VMS] GitHub backup failed:',res.status);
-    }
-  }catch(e){console.warn('[VMS] GitHub backup error:',e.message);}
-}
-
-// Get current SHA of vms_backup.json (needed to update an existing file)
-async function ghGetSHA(){
-  const token=ghGetToken();
-  if(!token)return'';
-  try{
-    const res=await fetch('https://api.github.com/repos/'+GH_REPO+'/contents/'+GH_FILE,{
-      headers:{'Authorization':'token '+token,'Accept':'application/vnd.github+json'}
-    });
-    if(!res.ok)return'';
-    const d=await res.json();
-    return d.sha||'';
-  }catch(e){return'';}
-}
-
-// Restore _DB from GitHub backup
-async function ghPull(){
-  const token=ghGetToken();
-  if(!token){toast('Enter GitHub token first','err');return;}
-  try{
-    const res=await fetch('https://api.github.com/repos/'+GH_REPO+'/contents/'+GH_FILE,{
-      headers:{'Authorization':'token '+token,'Accept':'application/vnd.github+json'}
-    });
-    if(!res.ok){toast('Backup file not found on GitHub','err');return;}
-    const d=await res.json();
-    const raw=decodeURIComponent(escape(atob(d.content.replace(/\n/g,''))));
-    const saved=JSON.parse(raw);
-    ['zones','hosts','visitors','preRegs','passPool','passCounters','passTotals','adminPw','idSeq','prSeq']
-      .forEach(k=>{if(saved[k]!==undefined)_DB[k]=saved[k];});
-    _save();
-    await load();render();
-    toast('Data restored from GitHub backup ✓');
-  }catch(e){toast('Restore failed: '+e.message,'err');}
-}
-
-// Immediate manual backup
-async function ghBackupNow(){
-  const btn=document.getElementById('gh-backup-btn');
-  if(btn){btn.disabled=true;btn.textContent='Backing up…';}
-  clearTimeout(_save._t);  // cancel debounce
-  const token=ghGetToken();
-  if(!token){
-    if(btn){btn.disabled=false;btn.textContent='☁ Backup Now';}
-    toast('Enter your GitHub token first','err');
-    return;
-  }
-  await ghPush();
-  if(btn){btn.disabled=false;btn.textContent='☁ Backup Now';}
-  const last=localStorage.getItem('lt_gh_last')||'';
-  if(last)toast(last);
-}
-
-// Update backup status display
-function updateGHStatus(){
-  const el=document.getElementById('gh-status-val');
-  if(!el)return;
-  const last=localStorage.getItem('lt_gh_last');
-  const token=ghGetToken();
-  if(!token)el.innerHTML='<span style="color:var(--lt-muted)">Token not set</span>';
-  else if(last)el.innerHTML='<span style="color:var(--green);font-weight:600">✓ Active</span><br><span style="font-size:11.5px">'+last+'</span>';
-  else el.innerHTML='<span style="color:var(--yellow)">Token set — no backup yet</span>';
-}
-
-// Save token from input
-function ghSaveTokenUI(){
-  const t=(document.getElementById('gh-token-inp')?.value||'').trim();
-  if(!t){toast('Enter a token','err');return;}
-  ghSaveToken(t);
-  localStorage.removeItem(GH_SHA); // clear cached SHA so next push fetches fresh
-  toast('Token saved — backing up now…');
-  ghBackupNow();
-}
-
 
 // ── Mobile navigation ─────────────────────────────────────────────────────────
 function toggleSidebar(){
@@ -2088,7 +1916,246 @@ function updateBottomNav(v){
   if(dot)dot.classList.toggle('show', n>0);
 }
 
-load().then(()=>{render();updateGHStatus();setTimeout(showStorageWarning,10000);});
+
+// ══════════════════════════════════════════════════════════════════════════════
+//  FIREBASE FIRESTORE — Real-time multi-device sync
+//  Free tier: 50K reads/day, 20K writes/day, 1GB storage
+// ══════════════════════════════════════════════════════════════════════════════
+
+// ── Firebase config (filled in by user via Admin → Sync Settings) ────────────
+const FB_CONFIG_KEY = 'lt_fb_config';
+let _fbApp = null;
+let _fbDb  = null;
+let _fbUnsub = null;   // Firestore real-time listener unsubscribe fn
+let _fbSyncing = false;
+let _fbEnabled = false;
+
+function fbGetConfig(){
+  try{ return JSON.parse(localStorage.getItem(FB_CONFIG_KEY)||'{}'); }catch(e){ return {}; }
+}
+function fbSaveConfig(cfg){
+  localStorage.setItem(FB_CONFIG_KEY, JSON.stringify(cfg));
+}
+
+// Load Firebase SDK dynamically (only when config is set)
+async function fbInit(){
+  const cfg = fbGetConfig();
+  if(!cfg.apiKey || !cfg.projectId){ _fbEnabled=false; return false; }
+  try{
+    // Load Firebase if not already loaded
+    if(!window.firebase){
+      await loadScript('https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js');
+      await loadScript('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js');
+    }
+    if(!_fbApp){
+      _fbApp = window.firebase.initializeApp({
+        apiKey:      cfg.apiKey,
+        authDomain:  cfg.projectId+'.firebaseapp.com',
+        projectId:   cfg.projectId,
+      }, 'vms-app');
+      _fbDb = _fbApp.firestore();
+      // Enable offline persistence so app works even when offline
+      await _fbDb.enablePersistence({synchronizeTabs:true}).catch(()=>{});
+    }
+    _fbEnabled = true;
+    console.log('[VMS] Firebase connected:', cfg.projectId);
+    return true;
+  }catch(e){
+    console.warn('[VMS] Firebase init failed:', e.message);
+    _fbEnabled = false;
+    return false;
+  }
+}
+
+function loadScript(src){
+  return new Promise((resolve,reject)=>{
+    if(document.querySelector('script[src="'+src+'"]')){resolve();return;}
+    const s=document.createElement('script');
+    s.src=src; s.onload=resolve; s.onerror=reject;
+    document.head.appendChild(s);
+  });
+}
+
+// ── Push entire _DB to Firestore ──────────────────────────────────────────────
+let _pushTimer = null;
+async function fbPush(){
+  if(!_fbEnabled || !_fbDb || _fbSyncing) return;
+  clearTimeout(_pushTimer);
+  _pushTimer = setTimeout(async ()=>{
+    try{
+      await _fbDb.collection('vms').doc('data').set({
+        ..._DB,
+        _updatedAt: new Date().toISOString(),
+        _device: _deviceId(),
+      });
+      updateSyncStatus('synced');
+    }catch(e){
+      console.warn('[VMS] Firestore push failed:', e.message);
+      updateSyncStatus('error', e.message);
+    }
+  }, 1500);  // debounce 1.5s
+}
+
+// ── Start real-time listener — updates UI instantly on any device ─────────────
+function fbStartListener(){
+  if(!_fbEnabled || !_fbDb) return;
+  if(_fbUnsub) _fbUnsub();  // unsubscribe previous listener
+  _fbUnsub = _fbDb.collection('vms').doc('data').onSnapshot(
+    snap => {
+      if(!snap.exists) return;
+      const data = snap.data();
+      // Don't re-apply if this device just pushed it
+      if(data._device === _deviceId() && data._updatedAt){
+        const age = Date.now() - new Date(data._updatedAt).getTime();
+        if(age < 3000) return;  // skip own recent push
+      }
+      _fbSyncing = true;
+      ['zones','hosts','visitors','preRegs','passPool','passCounters',
+       'passTotals','adminPw','idSeq','prSeq'].forEach(k=>{
+        if(data[k] !== undefined) _DB[k] = data[k];
+      });
+      _save();  // persist to localStorage as cache
+      _fbSyncing = false;
+      load().then(()=>render());
+      updateSyncStatus('synced');
+    },
+    err => {
+      console.warn('[VMS] Firestore listener error:', err.message);
+      updateSyncStatus('error', err.message);
+    }
+  );
+  console.log('[VMS] Real-time sync active');
+}
+
+// ── Device ID (stable per browser) ───────────────────────────────────────────
+function _deviceId(){
+  let id = localStorage.getItem('lt_device_id');
+  if(!id){ id='dev_'+Math.random().toString(36).slice(2,10); localStorage.setItem('lt_device_id',id); }
+  return id;
+}
+
+// ── Sync status indicator ─────────────────────────────────────────────────────
+function updateSyncStatus(state, msg){
+  const el = document.getElementById('sync-status');
+  if(!el) return;
+  const cfg = fbGetConfig();
+  if(!cfg.apiKey){ el.innerHTML='<span style="color:var(--lt-muted)">Not configured</span>'; return; }
+  const icons = { synced:'🟢', syncing:'🟡', error:'🔴', offline:'🟠' };
+  const labels = { synced:'Synced', syncing:'Syncing…', error:'Error', offline:'Offline' };
+  el.innerHTML = (icons[state]||'⚪')+' <b>'+( labels[state]||state)+'</b>'
+    + (msg?'<br><span style="font-size:11px;color:var(--red)">'+esc(msg)+'</span>':'')
+    +'<br><span style="font-size:11px;color:var(--lt-muted)">'+esc(cfg.projectId||'')+'</span>';
+}
+
+// ── Patch _save to also push to Firestore ────────────────────────────────────
+const _saveOriginal = _save;
+function _save(){
+  _saveOriginal();
+  if(_fbEnabled && !_fbSyncing) fbPush();
+}
+
+// ── Admin UI: Sync Settings section ──────────────────────────────────────────
+function renderSyncSettings(){
+  const cfg = fbGetConfig();
+  return `
+    <div class="as"><div class="ast">🔄 Real-Time Sync (Firebase)</div>
+      <div class="card cb">
+        <div style="display:grid;grid-template-columns:1fr auto;gap:16px;align-items:start;margin-bottom:14px;flex-wrap:wrap">
+          <div>
+            <div style="font-size:13px;font-weight:600;margin-bottom:5px">Multi-device real-time sync</div>
+            <div style="font-size:12px;color:var(--lt-muted);line-height:1.7">
+              Data syncs instantly across all devices (phones, tablets, PCs).<br>
+              Uses <b>Google Firebase Firestore</b> — free tier, no credit card needed.<br>
+              Free: 50,000 reads/day · 20,000 writes/day · works offline too.
+            </div>
+          </div>
+          <div id="sync-status" style="min-width:130px;background:var(--lt-bg);border:1px solid var(--lt-border);border-radius:var(--r-md);padding:11px 13px;font-size:12.5px;text-align:center">
+            Loading…
+          </div>
+        </div>
+        <div class="fg" style="margin-bottom:12px">
+          <div class="fgrp full"><label class="lbl">Firebase API Key <span class="req">*</span></label>
+            <input class="inp" id="fb-apikey" type="password" placeholder="AIzaSy…" value="${esc(cfg.apiKey||'')}"></div>
+          <div class="fgrp full"><label class="lbl">Firebase Project ID <span class="req">*</span></label>
+            <input class="inp" id="fb-project" placeholder="your-project-id" value="${esc(cfg.projectId||'')}"></div>
+        </div>
+        <div style="font-size:11.5px;color:var(--lt-muted);padding:11px 13px;background:rgba(27,58,107,.05);border-radius:var(--r);line-height:1.8;margin-bottom:13px">
+          <b>How to set up Firebase (free, 5 minutes):</b><br>
+          1. Go to <a href="https://console.firebase.google.com" target="_blank" style="color:var(--lt-red)">console.firebase.google.com</a> → <b>Add project</b><br>
+          2. Name it (e.g. <b>lanka-tiles-vms</b>) → disable Google Analytics → <b>Create project</b><br>
+          3. Click <b>Firestore Database</b> (left menu) → <b>Create database</b> → <b>Start in test mode</b> → your region → <b>Enable</b><br>
+          4. Click ⚙ <b>Project settings</b> (top left gear) → scroll to <b>Your apps</b> → click <b>&lt;/&gt;</b> (Web) → register app<br>
+          5. Copy <b>apiKey</b> and <b>projectId</b> from the config shown → paste above<br>
+          6. Click <b>Save &amp; Connect</b>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-primary btn-sm" onclick="fbSaveAndConnect()">💾 Save &amp; Connect</button>
+          <button class="btn btn-ghost btn-sm" onclick="fbSyncNow()">🔄 Sync Now</button>
+          <button class="btn btn-ghost btn-sm" onclick="fbRestoreFromCloud()">↓ Restore from Cloud</button>
+          <button class="btn btn-danger btn-sm" onclick="fbDisconnect()">Disconnect</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+async function fbSaveAndConnect(){
+  const apiKey  = document.getElementById('fb-apikey')?.value.trim();
+  const project = document.getElementById('fb-project')?.value.trim();
+  if(!apiKey||!project){ toast('Enter API Key and Project ID','err'); return; }
+  fbSaveConfig({ apiKey, projectId:project });
+  _fbApp=null; _fbDb=null;  // reset so fbInit re-initialises
+  updateSyncStatus('syncing');
+  const ok = await fbInit();
+  if(!ok){ toast('Connection failed — check API Key and Project ID','err'); updateSyncStatus('error','Check credentials'); return; }
+  fbStartListener();
+  toast('Connected! Syncing data…');
+  render();
+}
+
+async function fbSyncNow(){
+  if(!_fbEnabled){ toast('Configure Firebase first','err'); return; }
+  updateSyncStatus('syncing');
+  await fbPush();
+}
+
+async function fbRestoreFromCloud(){
+  if(!_fbEnabled || !_fbDb){ toast('Configure Firebase first','err'); return; }
+  try{
+    const snap = await _fbDb.collection('vms').doc('data').get();
+    if(!snap.exists){ toast('No data in cloud yet','info'); return; }
+    const data = snap.data();
+    _fbSyncing=true;
+    ['zones','hosts','visitors','preRegs','passPool','passCounters',
+     'passTotals','adminPw','idSeq','prSeq'].forEach(k=>{
+      if(data[k]!==undefined)_DB[k]=data[k];
+    });
+    _save(); _fbSyncing=false;
+    await load(); render();
+    toast('Data restored from cloud ✓');
+  }catch(e){ toast('Restore failed: '+e.message,'err'); }
+}
+
+function fbDisconnect(){
+  if(!confirm('Disconnect from Firebase? Data stays in localStorage.')) return;
+  if(_fbUnsub){ _fbUnsub(); _fbUnsub=null; }
+  localStorage.removeItem(FB_CONFIG_KEY);
+  _fbEnabled=false; _fbApp=null; _fbDb=null;
+  toast('Disconnected from Firebase','info');
+  render();
+}
+
+// ── Start Firebase on boot ────────────────────────────────────────────────────
+async function fbStart(){
+  const ok = await fbInit();
+  if(ok) fbStartListener();
+  updateSyncStatus(ok ? 'synced' : (fbGetConfig().apiKey ? 'error' : 'offline'));
+}
+
+
+load().then(()=>{render();updateBottomNav(S.view||'dashboard');
+  fbStart().then(()=>setTimeout(()=>updateSyncStatus(_fbEnabled?'synced':'offline'),100));
+});
+
 
 
 
